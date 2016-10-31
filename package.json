@@ -1,0 +1,29 @@
+{
+  "name": "piye-kabare-server",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "amqp": "^0.2.6",
+    "amqplib": "^0.4.2",
+    "socket.io": "^1.5.1",
+    "express": "^4.14.0",
+    "lodash": "^4.16.4",
+    "lodash-node": "^3.10.2",
+    "uuid": "^2.0.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icalF/piye-kabare-server.git"
+  },
+  "author": "icalF",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/icalF/piye-kabare-server/issues"
+  },
+  "homepage": "https://github.com/icalF/piye-kabare-server#readme"
+}
