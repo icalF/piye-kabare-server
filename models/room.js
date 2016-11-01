@@ -4,8 +4,8 @@ dbHelper.connect(dbHelper.databases.main);
 var Schema = mongoose.Schema;
 
 var roomSchema = new Schema({
-    'nameGroup': { type: String},
-    'adminId':  Schema.Types.ObjectId,
+    'nameGroup': { type: String, required: true},
+    'adminId':  { type: Schema.Types.ObjectId, required: true},
     'datetime': { type: Date, default: Date.now },
   },
   {

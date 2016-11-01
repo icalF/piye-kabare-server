@@ -4,9 +4,9 @@ dbHelper.connect(dbHelper.databases.main);
 var Schema = mongoose.Schema;
 
 var messageSchema = new Schema({
-    'senderID': Schema.Types.ObjectId,
-    'roomID': Schema.Types.ObjectId,
-    'content': { type: String },
+    'senderID': { type: Schema.Types.ObjectId, required: true},
+    'roomID': { type: Schema.Types.ObjectId, required: true},
+    'content': { type: String , required: true},
     'datetime': { type: Date, default: Date.now },
   },
   {
