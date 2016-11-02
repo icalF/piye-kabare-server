@@ -42,18 +42,15 @@ io.on('connection', function (client) {
 
   client.on('login', function(credential) {
     // body...
-    var options = {};
-    options.username = "icalF";
-    options.password = "ganteng";
-    userQ.login(options).then(function (res) {
+    var credential = {};
+    credential.username = "icalF";
+    credential.password = "ganteng";
+    userQ.login(credential).then(function (res) {
       if (res.length < 1) {
         console.log("something");
         return;
       }
-      res.forEach(function (item) {
-        console.log(item.username);
-        console.log(item.password);
-      });
+      //generate token
     });
   });
 
@@ -78,7 +75,7 @@ io.on('connection', function (client) {
         FriendModel["userID2"] = u2;
         friendQ.find(FriendModel).then(function (res) {
           if (res.length > 0) {
-            console.log("wis ono");
+            console.log("wis friend");
             return;
           }
           friendQ.add(new Friend(FriendModel));RoomUser
@@ -152,7 +149,7 @@ io.on('connection', function (client) {
     };
 
     var RoomUserModel = {};
-    _.forOwn(roomData, function (value, key) {
+    _.forOwn(roomUserData, function (value, key) {
       RoomUserModel[key] = value;
     });
 
@@ -160,53 +157,31 @@ io.on('connection', function (client) {
     // body...
   });
 
-  client.on('kick', function (memberId) {
+  client.on('kick', function (roomId, memberId) {
     // body...
   });
 
   /* Chat */
-  client.on('send', function (roomId) {
+  client.on('send', function (senderId, roomId, content) {
     // body...
+    var messageData = {
+    "senderID" : senderId,
+    "roomID" : roomId,
+    "content" : content,
+    };
+
+    var MessageModel = {};
+    _.forOwn(messageData, function (value, key) {
+    MessageModel[key] = value;
+    });
+
+    messageQ.send(new Message(MessageModel)).then(function (res) {
+      console.log(res);
+    });
   });
+
+
 });
-
-  var nameGroup = "lol";
-  var options = {};
-  options.username = "icalF";
-  userQ.find(options).then(function (res) {
-
-      if (res.length != 1) {
-        console.log("error, no name");
-        return;
-      }
-      var roomData = {
-        "nameGroup" : "lol",
-        "adminId" : res[0].id,
-      };
-
-      var RoomModel = {};
-      _.forOwn(roomData, function (value, key) {
-      RoomModel[key] = value;
-      });
-
-
-      roomQ.create(new Room(RoomModel)).then(function (res2) {
-        var roomUserData = {
-          "roomId" : res2,
-          "userId" : roomData["adminId"],
-        };
-
-        console.log(roomUserData["roomId"]);
-        console.log(roomUserData["userId"]);
-        var RoomUserModel = {};
-        _.forOwn(roomUserData, function (value, key) {
-          RoomUserModel[key] = value;
-        });
-
-        roomuserQ.add(new RoomUser(RoomUserModel));
-      });
-
-  });
 
 app.listen(8080, function () {
   console.log('listening on *:8080');
