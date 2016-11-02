@@ -4,7 +4,6 @@ var io = require('socket.io')(http);
 var _ = require('lodash');
 var uuid = require('uuid');
 var rabbitMq = require('amqp').createConnection({ host: 'localhost' });
-
 // app.configure(function () {
 //   app.use(express.static(__dirname + '/public'));
 //   app.use(express.errorHandler({
@@ -12,6 +11,8 @@ var rabbitMq = require('amqp').createConnection({ host: 'localhost' });
 //     showStack: true
 //   }));
 // });
+
+var amqp = require('amqplib/callback_api');
 
 rabbitMq.on('ready', function () {
   io.sockets.on('connection', function (socket) {

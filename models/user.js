@@ -6,6 +6,7 @@ var bcrypt = require('bcrypt-nodejs');
 
 var UserSchema = new Schema({
        username: { type: String, required: true, unique: true },
+       name: { type: String, required: true},
        password: { type: String, required: true },
        createdAt: { type: Date, default: Date.now },
   },
@@ -27,7 +28,7 @@ var UserSchema = new Schema({
 //       next(null, hash);
 //     });
 //  });
-// 
+//
 //  UserSchema.methods.verifyPassword = function(password, callback) {
 //    this.hash(password, function(err, hash) {
 //       bcrypt.compare(password, hash, function(err, isMatch) {

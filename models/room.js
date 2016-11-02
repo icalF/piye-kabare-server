@@ -5,7 +5,7 @@ var Schema = mongoose.Schema;
 
 var roomSchema = new Schema({
     'nameGroup': { type: String, required: true},
-    'adminId':  { type: Schema.Types.ObjectId, required: true},
+    'adminId':  { type: Schema.Types.ObjectId},
     'datetime': { type: Date, default: Date.now },
   },
   {

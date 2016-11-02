@@ -26,8 +26,9 @@ exports.find = function (options) {
             console.log(err);
           });
       }
-      return res;
-
+      else {
+        return res;
+      }
     })
     .catch(function (err) {
       console.log(err);

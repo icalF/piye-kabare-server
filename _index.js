@@ -1,6 +1,5 @@
 var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var express = require('express');
 var _ = require('lodash');
 var uuid = require('uuid');
 var User = require('./models/user');
@@ -13,17 +12,32 @@ var RoomUser = require('./models/roomuser');
 var roomuserQ = require('./queries/roomuser');
 var Message = require('./models/message');
 var messageQ = require('./queries/message');
-// var Room = require('models/room');
+var Session = require('./models/session');
+var sessionQ = require('./queries/session');
+var rabbitMq = require('amqp').createConnection({ host: 'localhost' });
+app.use(express.static(__dirname + '/public'));
+
+app.get('/', function (req, res) {_id
+    // res.send('Hello World');
+    console.log(res);
+});
+
+var http = require('http').createServer(app);
+
+http.listen(8083, function () {
+  console.log('listening on *:8083');
+});
+
+var io = require('socket.io')(http);
 
 io.on('connection', function (client) {
   // TODO: push queue
-
   /* User */
+  console.log("lel");
+  /* User */
+
   client.on('register', function (userData) {
-      // var userData = {
-      //   "username" : "icalF",
-      //   "password" : "ganteng"
-      // };
+
       var UserModel = {};
       _.forOwn(userData, function (value, key) {
         UserModel[key] = value;
@@ -32,41 +46,75 @@ io.on('connection', function (client) {
       options.username = UserModel["username"];
       userQ.find(options).then(function (res) {
         if (res.length > 0) {
-          console.log("something");
+          console.log("already registered");
+          client.emit("register_status",300);
           return;
         }
-        userQ.register(new User(UserModel));
+        userQ.register(new User(UserModel)).then(function(res){
+          client.emit("register_status",200);
+        });
+      }).catch(function (err) {
+        console.log(err);
+        client.emit("register_status",500);
       });
-
   });
 
   client.on('login', function(credential) {
     // body...
-    var credential = {};
-    credential.username = "icalF";
-    credential.password = "ganteng";
+    if (credential.password == "") credential.password = "lel";
+    console.log("onLogin");
     userQ.login(credential).then(function (res) {
       if (res.length < 1) {
-        console.log("something");
+        console.log("error at login");
+        client.emit("login_resp",401);
         return;
       }
-      //generate token
+      console.log("login");
+      var sesssionModel = {};
+      sesssionModel.userId = res[0].id;
+      sesssionModel.socketId = client.id;
+      sessionQ.create(new Session(sesssionModel)).then(function(token){
+        var response = {};
+        response.userId = res[0].id;
+        response.username = res[0].username;
+        response.name = res[0].name;
+        response.sessionId = token;
+        response.socketId =  client.id;
+        client.emit("login_resp",response);
+      });
     });
   });
 
-  client.on('add_friend', function (uname, fname) {
+  client.on('getUserData', function(username) {
+      var options = {};
+      options.username = username;
+      userQ.find(options).then(function (res) {
+        if (res.length < 1) {
+          console.log("error at get user data");
+          client.emit("getUserData_resp",400);
+          return;
+        }
+
+        var response = {};
+        response.userId = res[0].id;
+        response.username = res[0].username;
+        client.emit("getUserData_resp",response);
+      });
+    });
+
+  client.on('add_friend', function (param) {
     var options = {};
-    options.username = uname;
+    options.username = param.uname;
     userQ.find(options).then(function (res) {
       if (res.length != 1) {
-        console.log("error, no name");
+        client.emit("add_friend_resp",400);
         return;
       }
       var u1 = res[0].id;
-      options.username = fname;
+      options.username = param.fname;
       userQ.find(options).then(function (res) {
         if (res.length != 1) {
-          console.log("error, no name");
+          client.emit("add_friend_resp",400);
           return;
         }
         var u2 = res[0].id;
@@ -75,85 +123,199 @@ io.on('connection', function (client) {
         FriendModel["userID2"] = u2;
         friendQ.find(FriendModel).then(function (res) {
           if (res.length > 0) {
-            console.log("wis friend");
+            client.emit("add_friend_resp",300);
             return;
           }
-          friendQ.add(new Friend(FriendModel));RoomUser
+          friendQ.add(new Friend(FriendModel)).then(function (res) {
+            client.emit("add_friend_resp",200);
+          });
         });
       });
     });
   });
 
-  client.on('findUser', function (uname) {
-    var options = {};
-    options.username = uname;
+  client.on('findUser', function (options) {
     userQ.find(options).then(function (res) {
-      if (res.length > 0) {
-        console.log("something");
+      if (res.length < 1) {
+        client.emit("findUser_resp",300);
         return;
       }
-      userQ.register(new User(UserModel));
+      var response = {};
+      response.userId = res[0].id;
+      response.username = res[0].username;
+      response.name = res[0].name;
+      client.emit("findUser_resp",response);
+      // userQ.register(new User(UserModel));
     });
   });
 
   /* Room */
 
-  client.on('findRoom', function (uname) {
+  client.on('findRoom', function (userId) {
     var options = {};
-    options.username = uname;
-    userQ.find(options).then(function (res) {
-      if (res.length > 0) {
-        console.log("something");
+    options.userId = userId;
+    roomuserQ.find(options).then(function (res) {
+      var arrRoom = [];
+      if (res.length < 0) {
+        client.emit("findRoom_resp",arrRoom);
         return;
       }
-      userQ.register(new User(UserModel));
+      _.each(res, function (item) {
+          var options2 = {};
+          var rooom = {};
+          rooom._id = item.roomId;
+          options2._id = item.roomId;
+          roomQ.find(options2).then(function (resp) {
+            if (resp[0].adminId) {
+              rooom.adminId = resp[0].adminId;
+              rooom.nameGroup = resp[0].nameGroup;
+              arrRoom.push(rooom);
+              if (arrRoom.length >= res.length) {
+                client.emit("findRoom_resp",arrRoom);
+                return;
+              }
+            }
+            else {
+              var options3 = {};
+              options3.roomId = item.roomId;
+              roomuserQ.find(options3).then(function (resp2) {
+                if (resp2.length == 2) {
+                  _.each(resp2, function (items) {
+                    if (items.userId != userId) {
+                        var options3 = {};
+                        options3._id = items.userId;
+                        userQ.find(options3).then(function (resp3) {
+                           rooom.nameGroup = resp3[0].name;
+                           arrRoom.push(rooom);
+                           if (arrRoom.length >= res.length) {
+                             client.emit("findRoom_resp",arrRoom);
+                             return;
+                           }
+                        });
+                    }
+                  });
+                }
+              });
+            }
+          });
+      });
+
     });
   });
 
   client.on('create', function (roomData) {
-    var nameGroup = roomData.nameGroup;
-    var options = {};
-    options.username = roomData.uname;
-    userQ.find(options).then(function (res) {
-        if (res.length != 1) {
-          console.log("error, no name");
-          return;
-        }
-        var roomData = {
-          "nameGroup" : nameGroup,
-          "adminId" : res[0].id,
+      var RoomModel = {};
+      _.forOwn(roomData, function (value, key) {
+        RoomModel[key] = value;
+      });
+
+      roomQ.create(new Room(RoomModel)).then(function (res) {
+        var roomUserData = {
+          "roomId" : res,
+          "userId" : roomData["adminId"],
         };
-        var RoomModel = {};
-        _.forOwn(roomData, function (value, key) {
-          RoomModel[key] = value;
+        var RoomUserModel = {};
+        _.forOwn(roomUserData, function (value, key) {
+          RoomUserModel[key] = value;
         });
-        roomQ.create(new Room(RoomModel)).then(function (res2) {
-          var roomUserData = {
-            "roomId" : res2,
-            "userId" : roomData["adminId"],
-          };
-          var RoomUserModel = {};
-          _.forOwn(roomUserData, function (value, key) {
-            RoomUserModel[key] = value;
-          });
-          roomuserQ.add(new RoomUser(RoomUserModel));
+        roomuserQ.add(new RoomUser(RoomUserModel)).then(function (res){
+          client.emit("create_resp",res);
         });
-    });
+      }).catch(function (err) {
+        console.log(err);
+        client.emit("create_resp",500);
+      });
     // body...
   });
 
-  client.on('add', function (roomId, memberId) {
-    var roomUserData = {
-      "roomId" : roomId,
-      "userId" : memberId,
-    };
+  client.on('chat', function (roomData) {
+      var RoomModel = {};
+      _.forOwn(roomData, function (value, key) {
+        RoomModel[key] = value;
+      });
+      var options = {};
+      options.userId = roomData.userId1;
+      roomuserQ.find(options)
+        .then(function (res) {
+          var len = 0;
+          if (res.length == 0) {
+            roomQ.create(new Room(RoomModel)).then(function (res) {
+              var roomUserData = {
+                "roomId" : res,
+                "userId" : roomData["userId1"],
+              };
+              var RoomUserModel = {};
+              _.forOwn(roomUserData, function (value, key) {
+                RoomUserModel[key] = value;
+              });
+              roomuserQ.add(new RoomUser(RoomUserModel));
+              RoomUserModel["userId"] = roomData["userId2"];
+              roomuserQ.add(new RoomUser(RoomUserModel));
+              client.emit("chat_resp",res);
+              return;
+            }).catch(function (err) {
+              // console.log(err);
+              client.emit("chat_resp",500);
+              return;
+            });
+          }
+          for (var i = 0; i < res.length; i++) {
+            var options2 = {};
+            options2.userId = roomData.userId2;
+            options2.roomId = res[i].roomId;
+            roomuserQ.find(options2)
+              .then(function (resz) {
+                  if (resz.length == 0 && i == res.length-1) {
+                    roomQ.create(new Room(RoomModel)).then(function (res) {
+                      var roomUserData = {
+                        "roomId" : res,
+                        "userId" : roomData["userId1"],
+                      };
+                      var RoomUserModel = {};
+                      _.forOwn(roomUserData, function (value, key) {
+                        RoomUserModel[key] = value;
+                      });
+                      roomuserQ.add(new RoomUser(RoomUserModel));
+                      RoomUserModel["userId"] = roomData["userId2"];
+                      roomuserQ.add(new RoomUser(RoomUserModel));
+                      client.emit("chat_resp",res);
+                      return;
+                    }).catch(function (err) {
+                      console.log(err);
+                      client.emit("chat_resp",500);
+                      return;
+                  });
+                }
+                else if (resz.length > 0){
+                  // console.log(resz);
+                  client.emit("chat_resp",resz[0].roomId);
+                  return;
+                }
+              })
+              .catch(function (err) {
+                console.log(err);
+              });
+          }
+        })
+        .catch(function (err) {
+          console.log(err);
+        });
+    // body...
+  });
 
+  client.on('add', function (roomUserData) {
     var RoomUserModel = {};
     _.forOwn(roomUserData, function (value, key) {
       RoomUserModel[key] = value;
     });
-
-    roomuserQ.add(new RoomUser(RoomUserModel));
+    roomuserQ.add(new RoomUser(RoomUserModel))
+    .then(function (res) {
+      client.emit("add_resp",200);
+    })
+    .catch(function (err) {
+      console.log(err);
+      client.emit("add_resp",500);
+    });
     // body...
   });
 
@@ -162,27 +324,18 @@ io.on('connection', function (client) {
   });
 
   /* Chat */
-  client.on('send', function (senderId, roomId, content) {
+  client.on('send', function (messageData) {
     // body...
-    var messageData = {
-    "senderID" : senderId,
-    "roomID" : roomId,
-    "content" : content,
-    };
-
     var MessageModel = {};
     _.forOwn(messageData, function (value, key) {
-    MessageModel[key] = value;
+      MessageModel[key] = value;
     });
-
     messageQ.send(new Message(MessageModel)).then(function (res) {
-      console.log(res);
+        client.emit("send_resp",res);
+    }).catch(function (err) {
+      console.log(err);
+      client.emit("send_resp",500);
     });
   });
 
-
-});
-
-app.listen(8080, function () {
-  console.log('listening on *:8080');
 });
