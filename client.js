@@ -23,10 +23,12 @@ var credential = {};
 // socket.emit("findUser",credential);
 // socket.emit("getUserData",'5818af2d7142924d54f6b284');
 var messageData = {
-"senderID" : '5818af2d7142924d54f6b284',
-"roomID" : '581a8b0297740d176c6d7efc',
-"content" : 'karepmu',
+  // "senderID" : '5818af2d7142924d54f6b284',
+  "roomID" : '581a8b0297740d176c6d7efc',
+  // "content" : 'karepmu',
 };
+
+socket.emit("getMessage",messageData);
 // socket.emit("findRoom",'5818af2d7142924d54f6b284');
 //
 // socket.emit("send",messageData);
@@ -37,7 +39,7 @@ roomData.roomId = '581a8be1ef905225a4eeaf21';
 // roomData.page = 0;
 // roomData.content = 'hai guys';
 // roomData.userId2 = '5819c49a08760b40bd884861';
-socket.emit("kick",roomData);
+// socket.emit("kick",roomData);
 
 socket.on('connect', function(socket) {
     console.log('Connected!');

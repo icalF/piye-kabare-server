@@ -488,7 +488,27 @@ io.on('connection', function (client) {
     var options = {};
     options.roomID = messageOpt.roomID;
     messageQ.load(options,messageOpt.page).then(function (res) {
-        client.emit("getMessage_resp",res);
+      var i = 0;
+      var list = [];
+      _.each(res, function (item) {
+          var options2 = {};
+          options2._id = item.senderID;
+          userQ.find(options2).then(function(res2){
+            // console.log(res2[0]);
+            var items = {};
+            items._id = item._id;
+            items.senderID = item.senderID;
+            items.roomID = item.roomID;
+            items.content = item.content;
+            items.createdAt = item.createdAt;
+            items.username = res2[0].username;
+            items.name = res2[0].name;
+            list.push(items);
+            if ( list.length >= res.length ) {
+              client.emit("getMessage_resp",list);
+            }
+          });
+      });
     }).catch(function (err) {
       console.log(err);
       client.emit("getMessage_resp",500);
