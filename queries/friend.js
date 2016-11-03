@@ -4,7 +4,7 @@ var FriendProduct = require('../models/friend');
 exports.add = function (product) {
   return product.save()
     .then(function (product) {
-      return product._id;
+      return product ;
     })
     .catch(function (err) {
       console.log(err);

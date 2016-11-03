@@ -17,6 +17,7 @@ var sessionQ = require('./queries/session');
 var rabbitMq = require('amqp').createConnection({ host: 'localhost' });
 app.use(express.static(__dirname + '/public'));
 
+var amqp = require('amqplib/callback_api');
 app.get('/', function (req, res) {_id
     // res.send('Hello World');
     console.log(res);
@@ -105,29 +106,44 @@ io.on('connection', function (client) {
   client.on('add_friend', function (param) {
     var options = {};
     options.username = param.uname;
+    console.log("add_friend");
     userQ.find(options).then(function (res) {
       if (res.length != 1) {
         client.emit("add_friend_resp",400);
         return;
       }
       var u1 = res[0].id;
-      options.username = param.fname;
-      userQ.find(options).then(function (res) {
-        if (res.length != 1) {
+      var options2 = {};
+      options2.username = param.fname;
+      userQ.find(options2).then(function (res2) {
+        if (res2.length != 1) {
           client.emit("add_friend_resp",400);
           return;
         }
-        var u2 = res[0].id;
+        var u2 = res2[0].id;
         var FriendModel = {};
         FriendModel["userID"] = u1;
         FriendModel["userID2"] = u2;
-        friendQ.find(FriendModel).then(function (res) {
-          if (res.length > 0) {
+        friendQ.find(FriendModel).then(function (res3) {
+          if (res3.length > 0) {
             client.emit("add_friend_resp",300);
             return;
           }
-          friendQ.add(new Friend(FriendModel)).then(function (res) {
+          friendQ.add(new Friend(FriendModel)).then(function (resp) {
             client.emit("add_friend_resp",200);
+
+            amqp.connect('amqp://localhost', function(err, conn) {
+              conn.createChannel(function(err, ch) {
+                  var q = u2;
+                  var responseMQ = {};
+                  responseMQ.content = param.uname + " telah menambahkan teman dengan anda";
+                  responseMQ.datetime = resp.createdAt;
+                  ch.assertQueue(q, {durable: false});
+                  ch.sendToQueue(q, new Buffer(JSON.stringify(responseMQ)));
+                  console.log(" [x] Sent "+ JSON.stringify(responseMQ));
+              });
+            });
+
           });
         });
       });
@@ -311,6 +327,31 @@ io.on('connection', function (client) {
     roomuserQ.add(new RoomUser(RoomUserModel))
     .then(function (res) {
       client.emit("add_resp",200);
+      var options = {};
+      options.roomId = RoomUserModel['roomId'];
+      roomuserQ.find(options).then(function (res2){
+        var list = [];
+        _.each(res2, function (item) {
+          if (item.userId != RoomUserModel['userId'] ) {
+            list.push(item.userId);
+          }
+        });
+        console.log(list);
+        amqp.connect('amqp://localhost', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            _.each(list, function (items) {
+                console.log(list);
+                var q = items.toString();
+                var responseMQ = {};
+                responseMQ.content = "seseorang telah ditambahkan dalam grup";
+                responseMQ.datetime =  Date.now;
+                ch.assertQueue(q, {durable: false});
+                ch.sendToQueue(q, new Buffer(JSON.stringify(responseMQ)));
+                console.log(" [x] Sent "+JSON.stringify(responseMQ));
+            });
+          });
+        });
+      });
     })
     .catch(function (err) {
       console.log(err);
@@ -332,9 +373,42 @@ io.on('connection', function (client) {
     });
     messageQ.send(new Message(MessageModel)).then(function (res) {
         client.emit("send_resp",res);
+        var options = {};
+        options.roomId = res.roomID;
+        roomuserQ.find(options).then(function (res2){
+          var list = [];
+          _.each(res2, function (item) {
+            if (item.userId != MessageModel["senderID"] ) {
+              list.push(item.userId);
+            }
+          });
+          amqp.connect('amqp://localhost', function(err, conn) {
+            conn.createChannel(function(err, ch) {
+              _.each(list, function (item) {
+                  var q = item.toString();
+                  ch.assertQueue(q, {durable: false});
+                  ch.sendToQueue(q, new Buffer(JSON.stringify(res)));
+                  console.log(" [x] Sent "+JSON.stringify(res));
+              });
+            });
+          });
+        });
     }).catch(function (err) {
       console.log(err);
       client.emit("send_resp",500);
+    });
+  });
+
+  /* Chat */
+  client.on('getMessage', function (messageOpt) {
+    // body...
+    var options = {};
+    options.roomID = messageOpt.roomID;
+    messageQ.load(options,messageOpt.page).then(function (res) {
+        client.emit("getMessage_resp",res);
+    }).catch(function (err) {
+      console.log(err);
+      client.emit("getMessage_resp",500);
     });
   });
 

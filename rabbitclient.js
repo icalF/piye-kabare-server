@@ -1,37 +1,42 @@
-console.log('1');
 
-// Connect to server
-var io = require('socket.io-client');
-// var socket = io.connect('http://localhost:8083', {reconnect: true});
-var socket = io('http://localhost:8080');
-console.log('2');
+//
+// var args = process.argv.slice(2);
+//
+// if (args.length == 0) {
+//   console.log("Usage: receive_logs_topic.js <facility>.<severity>");
+//   process.exit(1);
+// }
+//
+// amqp.connect('amqp://localhost', function(err, conn) {
+//   conn.createChannel(function(err, ch) {
+//     var ex = 'message_q';
+//
+//     ch.assertExchange(ex, 'topic', {durable: false});
+//
+//     ch.assertQueue('', {exclusive: true}, function(err, q) {
+//       console.log(' [*] Waiting for logs. To exit press CTRL+C');
+//
+//       args.forEach(function(key) {
+//         ch.bindQueue(q.queue, ex, key);
+//       });
+//
+//       ch.consume(q.queue, function(msg) {
+//         console.log(" [x] %s:'%s'", msg.fields.routingKey, msg.content.toString());
+//       }, {noAck: true});
+//     });
+//   });
+// });
 
-socket.emit("findRoom",'5818af2d7142924d54f6b284');
+var amqp = require('amqplib/callback_api');
+amqp.connect('amqp://localhost', function(err, conn) {
+  conn.createChannel(function(err, ch) {
+    var q = '5818af2d7142924d54f6b284';
 
-var roomData = {};
-roomData.nameGroup = "keluargaical";
-roomData.userId1 = '5818af2d7142924d54f6b284';
-roomData.userId2 = '5819c49a08760b40bd884861';
-socket.emit("chat",roomData);
+    ch.assertQueue(q, {durable: false});
+    console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", q);
+    ch.consume(q, function(msg) {
+      console.log(" [x] Received %s", msg.content.toString());
+    }, {noAck: true});
 
-socket.on('connect', function(socket) {
-    console.log('Connected!');
+  });
 });
-socket.on('register_status', function(data) {
-    console.log(data);
-});
-socket.on('findUser_resp', function(data) {
-    console.log(data);
-});
-
-socket.on('chat_resp', function(data) {
-    console.log(data);
-});
-
-socket.on('findRoom_resp', function(data) {
-    console.log(data);
-});
-socket.on('getUserData_resp', function(data) {
-    console.log(data);
-});
-console.log('3');
