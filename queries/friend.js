@@ -11,6 +11,16 @@ exports.add = function (product) {
     });
 };
 
+exports.search = function (options) {
+  return FriendProduct.find(options)
+    .then(function (res) {
+        return res;
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+};
+
 exports.find = function (options) {
   return FriendProduct.find(options)
     .then(function (res) {

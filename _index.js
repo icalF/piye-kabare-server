@@ -34,7 +34,6 @@ var io = require('socket.io')(http);
 io.on('connection', function (client) {
   // TODO: push queue
   /* User */
-  console.log("lel");
   /* User */
 
   client.on('register', function (userData) {
@@ -144,6 +143,61 @@ io.on('connection', function (client) {
               });
             });
 
+          });
+        });
+      });
+    });
+  });
+
+    client.on('find_member', function (param) {
+      var options = {};
+      options.roomId = param.roomID;
+      console.log("find_member");
+      var list = [];
+      roomuserQ.find(options).then(function (res) {
+        // console.log(res);
+        _.each(res, function (item) {
+            var options = {};
+            options._id = item.userId;
+            userQ.find(options).then(function (res3) {
+              res3[0].password = "";
+              list.push(res3[0]);
+              if (list.length >= res.length) {
+                client.emit("find_member_resp",list);
+                return;
+              }
+            });
+        });
+      });
+    });
+
+  client.on('find_friend', function (param) {
+    var options = {};
+    options.userID = param.userID;
+    console.log("find_friend");
+    var list = [];
+    friendQ.search(options).then(function (res) {
+      _.each(res, function (item) {
+          var options = {};
+          options._id = item.userID2;
+          userQ.find(options).then(function (res3) {
+            res3[0].password = "";
+            list.push(res3[0]);
+          });
+      });
+      var options2 = {};
+      options2.userID2 = param.userID;
+      friendQ.search(options2).then(function (res2) {
+        _.each(res2, function (item) {
+          var options = {};
+          options._id = item.userID;
+          userQ.find(options).then(function (res3) {
+            res3[0].password = "";
+            list.push(res3[0]);
+            if (list.length >= res.length + res2.length) {
+              client.emit("find_friend_resp",list);
+              return;
+            }
           });
         });
       });
@@ -310,11 +364,13 @@ io.on('connection', function (client) {
               })
               .catch(function (err) {
                 console.log(err);
+                client.emit("chat_resp",500);
               });
           }
         })
         .catch(function (err) {
           console.log(err);
+          client.emit("chat_resp",500);
         });
     // body...
   });
@@ -336,11 +392,9 @@ io.on('connection', function (client) {
             list.push(item.userId);
           }
         });
-        console.log(list);
         amqp.connect('amqp://localhost', function(err, conn) {
           conn.createChannel(function(err, ch) {
             _.each(list, function (items) {
-                console.log(list);
                 var q = items.toString();
                 var responseMQ = {};
                 responseMQ.content = "seseorang telah ditambahkan dalam grup";
@@ -360,7 +414,36 @@ io.on('connection', function (client) {
     // body...
   });
 
-  client.on('kick', function (roomId, memberId) {
+  client.on('kick', function (roomUserData) {
+    roomuserQ.remove(roomUserData)
+    .then(function (res) {
+      client.emit("kick_resp",200);
+      var options = {};
+      options.roomId = roomUserData.roomId;
+      roomuserQ.find(options).then(function (res2){
+        var list = [];
+        _.each(res2, function (item) {
+          list.push(item.userId);
+        });
+        amqp.connect('amqp://localhost', function(err, conn) {
+          conn.createChannel(function(err, ch) {
+            _.each(list, function (items) {
+                var q = items.toString();
+                var responseMQ = {};
+                responseMQ.content = "seseorang telah dikeluarkan dalam grup";
+                responseMQ.datetime =  Date.now;
+                ch.assertQueue(q, {durable: false});
+                ch.sendToQueue(q, new Buffer(JSON.stringify(responseMQ)));
+                console.log(" [x] Sent "+JSON.stringify(responseMQ));
+            });
+          });
+        });
+      });
+    })
+    .catch(function (err) {
+      console.log(err);
+      client.emit("add_resp",500);
+    });
     // body...
   });
 

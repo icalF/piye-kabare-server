@@ -22,29 +22,31 @@ var credential = {};
 // socket.emit("add_friend",credential);
 // socket.emit("findUser",credential);
 // socket.emit("getUserData",'5818af2d7142924d54f6b284');
-// var messageData = {
-// "senderID" : senderId,
-// "roomID" : roomId,
-// "content" : content,
-// };
+var messageData = {
+"senderID" : '5818af2d7142924d54f6b284',
+"roomID" : '581a8b0297740d176c6d7efc',
+"content" : 'karepmu',
+};
 // socket.emit("findRoom",'5818af2d7142924d54f6b284');
 //
+// socket.emit("send",messageData);
 var roomData = {};
 // roomData.nameGroup = "keluargaical";
-// roomData.senderID = '5819c13de293b0401e7528ec';
-roomData.roomID = '581a8be1ef905225a4eeaf21';
-roomData.page = 0;
+roomData.userId = '5819c13de293b0401e7528ec';
+roomData.roomId = '581a8be1ef905225a4eeaf21';
+// roomData.page = 0;
 // roomData.content = 'hai guys';
 // roomData.userId2 = '5819c49a08760b40bd884861';
-socket.emit("getMessage",roomData);
+socket.emit("kick",roomData);
 
 socket.on('connect', function(socket) {
     console.log('Connected!');
 });
-socket.on('register_status', function(data) {
+socket.on('find_member_resp', function(data) {
+    console.log('find_member_resp');
     console.log(data);
 });
-socket.on('findUser_resp', function(data) {
+socket.on('kick_resp', function(data) {
     console.log(data);
 });
 
@@ -52,7 +54,7 @@ socket.on('getMessage_resp', function(data) {
     console.log(data);
 });
 
-socket.on('chat_resp', function(data) {
+socket.on('send_resp', function(data) {
     console.log(data);
 });
 
@@ -66,7 +68,7 @@ console.log('3');
 var roomData2 = {};
 // roomData.nameGroup = "keluargaical";
 // roomData.senderID = '5819c13de293b0401e7528ec';
-roomData2.roomID = '581a8be1ef905225a4eeaf21';
-roomData2.page = 1;
-// roomData.page = 1;
-socket.emit("getMessage",roomData2);
+// roomData2.roomID = '581a8be1ef905225a4eeaf21';
+// roomData2.page = 0;
+// // roomData.page = 1;
+// socket.emit("getMessage",roomData2);

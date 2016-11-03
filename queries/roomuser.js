@@ -20,6 +20,16 @@ exports.find = function (options) {
     });
 };
 
+exports.remove = function (options) {
+  return roomUserProduct.find(options).remove()
+    .then(function (res) {
+      return res;
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+};
+
 //
 // exports.findTwoID = function (input) {
 //   var options = {};
